@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">MeasureApp</string>
+    <string name="ruler">Ruler</string>
+    <string name="inch_format">%d in</string>
+    <string name="half_inch">1/2</string>
+    <string name="quarter_inch_format">%d/4</string>
+    <string name="eight_inch_format">%d/8</string>
+</resources>
