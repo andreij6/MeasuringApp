@@ -1,8 +1,6 @@
 package com.creativejones.andre.measureapp;
 
-import android.content.res.Resources;
 import android.graphics.Paint;
-import android.util.Log;
 
 public class Tick {
 
@@ -13,12 +11,9 @@ public class Tick {
     private int mDenominator;
     private Paint mPaint;
 
+    //region Getters & Setters
     public float getPixels() {
         return mPixels;
-    }
-
-    public boolean isInch() {
-        return mIsInch;
     }
 
     public void setPixels(float pixels) {
@@ -41,35 +36,8 @@ public class Tick {
         mFormatString = formatString;
     }
 
-    public boolean shouldDrawText(int counter) {
-        if(mIsInch){
-            return counter != 0;
-        }
-
-        if (!canBeReduced(counter)) {
-            return true;
-        }
-
-        return false;
-    }
-
-
-    boolean canBeReduced(int counter) {
-        int numerator = counter + 1;
-
-        return (numerator % 2 == 0);
-    }
-
     public int getFormatString() {
         return mFormatString;
-    }
-
-    public static float convertDpToPixel(float dp){
-        return (int) (dp * Resources.getSystem().getDisplayMetrics().density);
-    }
-
-    public static float convertPxFromDp(final float px) {
-        return px / Resources.getSystem().getDisplayMetrics().density;
     }
 
     public void setDenominator(int denominator) {
@@ -88,20 +56,7 @@ public class Tick {
         return mDenominator;
     }
 
-    public int getNumerator(int counter) {
-        if(mIsInch){
-            return counter;
-        }
-
-        int numerator = counter + 1;
-
-        if(numerator > mDenominator){
-            return numerator % mDenominator;
-        } else {
-            return numerator;
-        }
-    }
-
+    //endregion
 
     public static class Builder {
 
@@ -114,7 +69,7 @@ public class Tick {
         public Tick build() {
             Tick result = new Tick();
             result.setIsInch(mDP == 160f);
-            result.setPixels(convertDpToPixel(mDP));
+            result.setPixels(Utils.convertDpToPixel(mDP));
             result.setLength(mLength);
             result.setFormatString(mFormatString);
             result.setDenominator(mDenominator);
