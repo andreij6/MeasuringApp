@@ -5,11 +5,14 @@ import android.graphics.Paint;
 public class Tick {
 
     private float mPixels;
-    private boolean mIsInch;
     private int mLength;
     private int mFormatString;
     private int mDenominator;
     private Paint mPaint;
+    private double[] mSections;
+    private double mSprawlValue;
+    private boolean mDrawText;
+    private boolean mInchTick;
 
     //region Getters & Setters
     public float getPixels() {
@@ -18,10 +21,6 @@ public class Tick {
 
     public void setPixels(float pixels) {
         mPixels = pixels;
-    }
-
-    public void setIsInch(boolean isInch) {
-        mIsInch = isInch;
     }
 
     public void setLength(int length) {
@@ -56,6 +55,37 @@ public class Tick {
         return mDenominator;
     }
 
+    public double[] getSections() {
+        return mSections;
+    }
+
+    public double getSprawlValue() {
+        return mSprawlValue;
+    }
+
+    public void setSections(double[] sections) {
+        mSections = sections;
+    }
+
+    public void setSprawl(double sprawl) {
+        mSprawlValue = sprawl;
+    }
+
+    public boolean canDrawText() {
+        return mDrawText;
+    }
+
+    public void setDrawText(boolean drawText) {
+        mDrawText = drawText;
+    }
+
+    public boolean isInchTick() {
+        return mInchTick;
+    }
+
+    public void setIsInchTick(boolean isInchTick) {
+        mInchTick = isInchTick;
+    }
     //endregion
 
     public static class Builder {
@@ -65,15 +95,21 @@ public class Tick {
         private int mFormatString;
         private int mDenominator;
         private Paint mPaint;
+        private double sprawl;
+        double[] sections;
+        private boolean mShowLabel = true;
 
         public Tick build() {
             Tick result = new Tick();
-            result.setIsInch(mDP == 160f);
             result.setPixels(Utils.convertDpToPixel(mDP));
             result.setLength(mLength);
+            result.setIsInchTick(mDP == 160);
             result.setFormatString(mFormatString);
             result.setDenominator(mDenominator);
             result.setPaint(mPaint);
+            result.setSprawl(sprawl);
+            result.setSections(sections);
+            result.setDrawText(mShowLabel);
             return result;
         }
 
@@ -99,6 +135,21 @@ public class Tick {
 
         public Builder textPaint(Paint textPaint) {
             mPaint = textPaint;
+            return this;
+        }
+
+        public Builder sprawlValue(double sprawlValue) {
+            sprawl = sprawlValue;
+            return this;
+        }
+
+        public Builder sections(double[] array) {
+            sections = array;
+            return this;
+        }
+
+        public Builder hideLabel() {
+            mShowLabel = false;
             return this;
         }
     }

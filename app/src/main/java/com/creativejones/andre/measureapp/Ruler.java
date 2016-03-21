@@ -17,23 +17,19 @@ public class Ruler extends View {
 
     private static final float BASELINE_WIDTH = 1;
     private static final float BASELINE_POSITION = 10;
+    private static final double INCH_SPRAWL_VALUE = 0.125;
 
-    Paint mLinePaint;
-
-    Paint mInchTextPaint;
-    float mInchTextHeight;
-
-    Paint mQuarterEightPaint;
-    float mQuarterEightTextHeight;
-
-    float spread;
-
-    int mLineColor = Color.BLACK;
-    int mTextColor = Color.BLACK;
-
-    List<Tick> mTickList;
-    float mBaseLineLength;
-
+    private Paint mLinePaint;
+    private Paint mInchTextPaint;
+    private float mInchTextHeight;
+    private Paint mQuarterEightPaint;
+    private float mQuarterEightTextHeight;
+    private float mSpread;
+    private int mLineColor = Color.BLACK;
+    private int mTextColor = Color.BLACK;
+    private List<Tick> mTickList;
+    private float mBaseLineLength;
+    private Resources mResources;
 
     public Ruler(Context context) {
         super(context);
@@ -55,37 +51,15 @@ public class Ruler extends View {
         mLinePaint.setColor(mLineColor);
         mLinePaint.setStrokeWidth(BASELINE_WIDTH);
 
-        mInchTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mInchTextPaint.setColor(mTextColor);
-        mInchTextPaint.setTextSize(35);
+        mInchTextPaint = setPaint(35);
+        mQuarterEightPaint = setPaint(15);
 
-        if (mInchTextHeight == 0) {
-            mInchTextHeight = mInchTextPaint.getTextSize();
-        } else {
-            mInchTextPaint.setTextSize(mInchTextHeight);
-        }
+        setTextSize(mInchTextHeight, mInchTextPaint);
+        setTextSize(mQuarterEightTextHeight, mQuarterEightPaint);
 
-        mQuarterEightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mQuarterEightPaint.setColor(mTextColor);
-        mQuarterEightPaint.setTextSize(15);
+        buildTickList();
 
-        if(mQuarterEightTextHeight == 0){
-            mQuarterEightTextHeight = mQuarterEightPaint.getTextSize();
-        } else {
-            mQuarterEightPaint.setTextSize(mQuarterEightTextHeight);
-        }
-
-        mTickList = new ArrayList<>();
-
-        mTickList.add(new Tick.Builder().dps(160f).denominator(1).string(R.string.inch_format).textPaint(mInchTextPaint).length(200).build());
-        mTickList.add(new Tick.Builder().dps(80f).denominator(2).string(R.string.half_inch).textPaint(mInchTextPaint).length(125).build());
-        mTickList.add(new Tick.Builder().dps(40f).denominator(4).string(R.string.quarter_inch_format).textPaint(mQuarterEightPaint).length(75).build());
-        mTickList.add(new Tick.Builder().dps(20f).denominator(8).string(R.string.eight_inch_format).textPaint(mQuarterEightPaint).length(40).build());
-        mTickList.add(new Tick.Builder().dps(10f).denominator(16).string(R.string.eight_inch_format).textPaint(mInchTextPaint).length(25).build());
-
-
-        spread = Utils.convertDpToPixel(160);
-
+        mSpread = Utils.convertDpToPixel(160);
     }
 
     @Override
@@ -101,81 +75,67 @@ public class Ruler extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
+        mResources = getResources();
+
         mBaseLineLength = Utils.convertDpToPixel(160) * 10.5f;
+
         //draw baseline
         canvas.drawLine(BASELINE_POSITION, 0, BASELINE_POSITION, mBaseLineLength, mLinePaint);
 
         drawTicks(canvas);
-
     }
 
+    //region Helpers
     private void drawTicks(Canvas canvas) {
         Tick inchTick = mTickList.get(0);
-        float pxs = inchTick.getPixels();
-        Resources res = getResources();
+        float inchSpreadPX = inchTick.getPixels();
         int counter = 0;
 
-        for (int y = (int) BASELINE_WIDTH; y < Utils.convertDpToPixel(160) * 12; y += pxs) {
+        //start baseline--
+        int yPosition = calculateSprawl((int) BASELINE_WIDTH, 0, INCH_SPRAWL_VALUE);
+        canvas.drawLine(BASELINE_POSITION, yPosition, inchTick.getLength(), yPosition, mLinePaint);
+        //--
+
+        for (int y = (int) BASELINE_WIDTH; y < Utils.convertDpToPixel(160) * 12; y += inchSpreadPX) {
 
             int inchValue = 0;
 
             for (Tick tick : mTickList) {
 
-                if (tick.getDenominator() == 1) {
-
-                    int yPosition = calculateSprawl(y, counter, 0.125);
-                    canvas.drawLine(BASELINE_POSITION, yPosition, tick.getLength(), yPosition, mLinePaint);
-                    if(counter != 0) {
-                        canvas.drawText(String.format(res.getString(tick.getFormatString()), counter), tick.getLength() + 10, yPosition + 10, tick.getPaint());
-                    }
-
-                    inchValue = yPosition;
+                if (tick.isInchTick()) {
+                    inchValue = drawInchTick(canvas, counter, y, tick);
+                } else {
+                    drawTick(canvas, inchValue, tick, true);
                 }
-
-                if (tick.getDenominator() == 2) {
-                    double[] halveArray = { 0.5 };
-
-                    drawTick(canvas, inchValue, halveArray, 0.0625, tick, true);
-                }
-
-                if (tick.getDenominator() == 4) {
-
-                    double[] forthArray = { 0.25, 0.75 };
-
-                    drawTick(canvas, inchValue, forthArray, (0.0625 / 2), tick, true);
-                }
-
-                if (tick.getDenominator() == 8) {
-
-                    double[] eigthArray = { 0.125, 0.375, 0.625, 0.875 };
-
-                    drawTick(canvas, inchValue, eigthArray, (0.0625 / 4), tick, true);
-                }
-
-                if (tick.getDenominator() == 16) {
-
-                    double[] sixteenthArray = { 0.0625, 0.1875, 0.3125, 0.4375, 0.5625, 0.6875, 0.8125, 0.9375};
-
-                    drawTick(canvas, inchValue, sixteenthArray, (0.0625 / 8), tick, false);
-                }
-
             }
 
             counter++;
         }
 
+        //end baseline--
         canvas.drawLine(BASELINE_POSITION, mBaseLineLength, inchTick.getLength(), mBaseLineLength, mLinePaint);
-        canvas.drawText(String.format(res.getString(inchTick.getFormatString()), counter), inchTick.getLength() + 10, mBaseLineLength + 10, inchTick.getPaint());
+        drawText(canvas, inchTick, (int)mBaseLineLength, counter);
+        //--
     }
 
+    private int drawInchTick(Canvas canvas, int counter, int y, Tick tick) {
+        int yPosition  = calculateSprawl(y, counter, INCH_SPRAWL_VALUE);
 
-    private void drawTick(Canvas canvas, int inchMarker, double[] sections, double sprawlValue, Tick tick, boolean shouldDrawText){
+        if(counter > 0) {
+            canvas.drawLine(BASELINE_POSITION, yPosition, tick.getLength(), yPosition, mLinePaint);
+            drawText(canvas, tick, yPosition, counter);
+        }
 
+        return yPosition;
+    }
+
+    private void drawTick(Canvas canvas, int inchMarker, Tick tick, boolean shouldDrawText){
+        double[] sections = tick.getSections();
         int oddNumbers = 1;
         for (int i = 0; i < sections.length; i++) {
 
             int position = calcPosition(inchMarker, sections[i]);
-            int yPosition = calculateSprawl(position, oddNumbers, sprawlValue);
+            int yPosition = calculateSprawl(position, oddNumbers, tick.getSprawlValue());
             canvas.drawLine(BASELINE_POSITION , yPosition, tick.getLength(), yPosition, mLinePaint);
 
             if(shouldDrawText){
@@ -189,23 +149,75 @@ public class Ruler extends View {
 
     private int calculateSprawl(int y, int counter, double sprawlValue) {
         double mulitplyValue = counter * sprawlValue;
-        return (int)(y - (spread * mulitplyValue));
+        return (int)(y - (mSpread * mulitplyValue));
     }
-
 
     private int calcPosition(int previous, double decimal) {
-        return (int) (previous + (spread * decimal));
+        return (int) (previous + (mSpread * decimal));
     }
 
+    private void buildTickList() {
+        mTickList = new ArrayList<>();
 
-    private void drawText(Canvas canvas, Tick tick, int y, int numerator) {
-        Resources res = getResources();
-        if(tick.getDenominator() == 2){
-            canvas.drawText(res.getString(tick.getFormatString()), tick.getLength() + 10, y + 10, tick.getPaint());
-        } else {
-            canvas.drawText(String.format(res.getString(tick.getFormatString()), numerator), tick.getLength() + 10, y + 5, tick.getPaint());
+        mTickList.add(new Tick.Builder()
+                .dps(160f).denominator(1).string(R.string.inch_format)
+                .textPaint(mInchTextPaint).length(200).build());
+
+        double[] halveArray = { 0.5 };
+
+        mTickList.add(new Tick.Builder().sprawlValue(0.0625).sections(halveArray)
+                .dps(80f).denominator(2).string(R.string.half_inch)
+                .textPaint(mInchTextPaint).length(125).build());
+
+        double[] forthArray = { 0.25, 0.75 };
+
+        mTickList.add(new Tick.Builder().sprawlValue((0.0625 / 2)).sections(forthArray)
+                .dps(40f).denominator(4).string(R.string.quarter_inch_format)
+                .textPaint(mQuarterEightPaint).length(75).build());
+
+        double[] eigthArray = { 0.125, 0.375, 0.625, 0.875 };
+
+        mTickList.add(new Tick.Builder().sprawlValue((0.0625 / 4)).sections(eigthArray)
+                .dps(20f).denominator(8).string(R.string.eight_inch_format)
+                .textPaint(mQuarterEightPaint).length(40).build());
+
+        double[] sixteenthArray = { 0.0625, 0.1875, 0.3125, 0.4375, 0.5625, 0.6875, 0.8125, 0.9375};
+
+        mTickList.add(new Tick.Builder().sprawlValue((0.0625 / 8)).sections(sixteenthArray).hideLabel()
+                .dps(10f).denominator(16).string(R.string.eight_inch_format)
+                .textPaint(mInchTextPaint).length(25).build());
+    }
+
+    private void drawText(Canvas canvas, Tick tick, int y, int formatNumber) {
+        if(tick.canDrawText()) {
+            switch (tick.getDenominator()){
+                case 2:
+                    canvas.drawText(mResources.getString(tick.getFormatString()), tick.getLength() + 10, y + 10, tick.getPaint());
+                    break;
+                case 1:
+                    canvas.drawText(String.format(mResources.getString(tick.getFormatString()), formatNumber), tick.getLength() + 10, y + 10, tick.getPaint());
+                    break;
+                default:
+                    canvas.drawText(String.format(mResources.getString(tick.getFormatString()), formatNumber), tick.getLength() + 10, y + 5, tick.getPaint());
+                    break;
+            }
         }
     }
 
+    private void setTextSize(float textHeight, Paint paint) {
+        if(textHeight == 0){
+            textHeight = paint.getTextSize();
+        } else {
+            paint.setTextSize(textHeight);
+        }
+    }
 
+    private Paint setPaint(int textSize) {
+        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(mTextColor);
+        paint.setTextSize(textSize);
+
+        return paint;
+    }
+    //endregion
 }
