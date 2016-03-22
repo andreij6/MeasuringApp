@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.View;
 import android.view.WindowManager;
@@ -13,11 +14,12 @@ import android.view.WindowManager;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Ruler extends View {
+public class RulerView extends View {
 
     private static final float BASELINE_WIDTH = 1;
     private static final float BASELINE_POSITION = 10;
     private static final double INCH_SPRAWL_VALUE = 0.125;
+    private final int DENSITY_DPI = getResources().getDisplayMetrics().densityDpi;
 
     private Paint mLinePaint;
     private Paint mInchTextPaint;
@@ -30,37 +32,25 @@ public class Ruler extends View {
     private List<Tick> mTickList;
     private float mBaseLineLength;
     private Resources mResources;
+    private int mPreviousInch;
+    private int mAdjustmentValue;
 
-    public Ruler(Context context) {
+    //region Constructors
+    public RulerView(Context context) {
         super(context);
         initialize();
     }
 
-    public Ruler(Context context, AttributeSet attrs) {
+    public RulerView(Context context, AttributeSet attrs) {
         super(context, attrs);
         initialize();
     }
 
-    public Ruler(Context context, AttributeSet attrs, int defStyleAttr) {
+    public RulerView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         initialize();
     }
-
-    private void initialize() {
-        mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mLinePaint.setColor(mLineColor);
-        mLinePaint.setStrokeWidth(BASELINE_WIDTH);
-
-        mInchTextPaint = setPaint(35);
-        mQuarterEightPaint = setPaint(15);
-
-        setTextSize(mInchTextHeight, mInchTextPaint);
-        setTextSize(mQuarterEightTextHeight, mQuarterEightPaint);
-
-        buildTickList();
-
-        mSpread = Utils.convertDpToPixel(160);
-    }
+    //endregion
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -75,9 +65,9 @@ public class Ruler extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        mResources = getResources();
-
-        mBaseLineLength = Utils.convertDpToPixel(160) * 10.5f;
+        calculateAdjustmentValue();
+        
+        mBaseLineLength = Utils.convertDpToPixel(160) * 10.56f + ( mAdjustmentValue * 12);
 
         //draw baseline
         canvas.drawLine(BASELINE_POSITION, 0, BASELINE_POSITION, mBaseLineLength, mLinePaint);
@@ -86,17 +76,40 @@ public class Ruler extends View {
     }
 
     //region Helpers
+    private void initialize() {
+        mResources = getResources();
+
+        mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mLinePaint.setColor(mLineColor);
+        mLinePaint.setStrokeWidth(BASELINE_WIDTH);
+
+        mInchTextPaint = setPaint(35);
+        mQuarterEightPaint = setPaint(15);
+
+        mAdjustmentValue = 5;
+
+        setTextSize(mInchTextHeight, mInchTextPaint);
+        setTextSize(mQuarterEightTextHeight, mQuarterEightPaint);
+
+        buildTickList();
+
+        mSpread = Utils.convertDpToPixel(160);
+    }
+
     private void drawTicks(Canvas canvas) {
         Tick inchTick = mTickList.get(0);
-        float inchSpreadPX = inchTick.getPixels();
+        float inchSpreadPX = Utils.convertDpToPixel(160f);
         int counter = 0;
 
         //start baseline--
         int yPosition = calculateSprawl((int) BASELINE_WIDTH, 0, INCH_SPRAWL_VALUE);
         canvas.drawLine(BASELINE_POSITION, yPosition, inchTick.getLength(), yPosition, mLinePaint);
         //--
+        mPreviousInch = yPosition;
 
-        for (int y = (int) BASELINE_WIDTH; y < Utils.convertDpToPixel(160) * 12; y += inchSpreadPX) {
+        float loopMax = mBaseLineLength * 2;
+
+        for (int y = (int) BASELINE_WIDTH; y < loopMax; y += (inchSpreadPX + BASELINE_WIDTH)) {
 
             int inchValue = 0;
 
@@ -105,23 +118,22 @@ public class Ruler extends View {
                 if (tick.isInchTick()) {
                     inchValue = drawInchTick(canvas, counter, y, tick);
                 } else {
-                    drawTick(canvas, inchValue, tick, true);
+                    if(counter < 12) {
+                        drawTick(canvas, inchValue, tick, true);
+                    }
                 }
             }
 
+            mPreviousInch = inchValue;
             counter++;
         }
-
-        //end baseline--
-        canvas.drawLine(BASELINE_POSITION, mBaseLineLength, inchTick.getLength(), mBaseLineLength, mLinePaint);
-        drawText(canvas, inchTick, (int)mBaseLineLength, counter);
-        //--
     }
 
     private int drawInchTick(Canvas canvas, int counter, int y, Tick tick) {
-        int yPosition  = calculateSprawl(y, counter, INCH_SPRAWL_VALUE);
+        int yPosition = calculateSprawl(y, counter, INCH_SPRAWL_VALUE);
 
         if(counter > 0) {
+            yPosition = adjustByDPI(yPosition, counter);
             canvas.drawLine(BASELINE_POSITION, yPosition, tick.getLength(), yPosition, mLinePaint);
             drawText(canvas, tick, yPosition, counter);
         }
@@ -129,20 +141,32 @@ public class Ruler extends View {
         return yPosition;
     }
 
+    private int adjustByDPI(int yPosition, int counter) {
+        //limited by devices I can test on. I have Medium & High.
+
+        if(mAdjustmentValue == 0){
+            return yPosition;
+        } else {
+            return yPosition + mAdjustmentValue * counter;
+        }
+
+    }
+
     private void drawTick(Canvas canvas, int inchMarker, Tick tick, boolean shouldDrawText){
         double[] sections = tick.getSections();
-        int oddNumbers = 1;
+        int oddNumber = 1;
         for (int i = 0; i < sections.length; i++) {
 
             int position = calcPosition(inchMarker, sections[i]);
-            int yPosition = calculateSprawl(position, oddNumbers, tick.getSprawlValue());
+            int yPosition = calculateSprawl(position, oddNumber, tick.getSprawlValue());
+            //yPosition = adjustByDPI(yPosition, oddNumber);
             canvas.drawLine(BASELINE_POSITION , yPosition, tick.getLength(), yPosition, mLinePaint);
 
             if(shouldDrawText){
-                drawText(canvas, tick, yPosition, oddNumbers);
+                drawText(canvas, tick, yPosition, oddNumber);
             }
 
-            oddNumbers +=2;
+            oddNumber +=2;
 
         }
     }
@@ -152,14 +176,40 @@ public class Ruler extends View {
         return (int)(y - (mSpread * mulitplyValue));
     }
 
-    private int calcPosition(int previous, double decimal) {
-        return (int) (previous + (mSpread * decimal));
+    private int calcPosition(int currentInch, double decimal) {
+        return (int) (currentInch + ((mSpread + mAdjustmentValue) * decimal));
+    }
+
+    private void calculateAdjustmentValue() {
+        switch (DENSITY_DPI) {
+            case DisplayMetrics.DENSITY_LOW:
+                mAdjustmentValue = -10;
+                break;
+            case DisplayMetrics.DENSITY_MEDIUM:
+                mAdjustmentValue = 0;
+                break;
+            case DisplayMetrics.DENSITY_HIGH:
+                mAdjustmentValue = 10;
+                break;
+            case DisplayMetrics.DENSITY_XHIGH:
+                mAdjustmentValue = 20;
+                break;
+            case DisplayMetrics.DENSITY_XXHIGH:
+                mAdjustmentValue = 30;
+                break;
+            case DisplayMetrics.DENSITY_XXXHIGH:
+                mAdjustmentValue = 40;
+                break;
+            default:
+                mAdjustmentValue = 0;
+                break;
+        }
     }
 
     private void buildTickList() {
         mTickList = new ArrayList<>();
 
-        mTickList.add(new Tick.Builder()
+        mTickList.add(new Tick.Builder().isInchTick()
                 .dps(160f).denominator(1).string(R.string.inch_format)
                 .textPaint(mInchTextPaint).length(200).build());
 
@@ -186,6 +236,7 @@ public class Ruler extends View {
         mTickList.add(new Tick.Builder().sprawlValue((0.0625 / 8)).sections(sixteenthArray).hideLabel()
                 .dps(10f).denominator(16).string(R.string.eight_inch_format)
                 .textPaint(mInchTextPaint).length(25).build());
+
     }
 
     private void drawText(Canvas canvas, Tick tick, int y, int formatNumber) {

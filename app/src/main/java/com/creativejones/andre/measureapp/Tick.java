@@ -4,7 +4,6 @@ import android.graphics.Paint;
 
 public class Tick {
 
-    private float mPixels;
     private int mLength;
     private int mFormatString;
     private int mDenominator;
@@ -15,14 +14,6 @@ public class Tick {
     private boolean mInchTick;
 
     //region Getters & Setters
-    public float getPixels() {
-        return mPixels;
-    }
-
-    public void setPixels(float pixels) {
-        mPixels = pixels;
-    }
-
     public void setLength(int length) {
         mLength = length;
     }
@@ -98,12 +89,12 @@ public class Tick {
         private double sprawl;
         double[] sections;
         private boolean mShowLabel = true;
+        boolean inchTick = false;
 
         public Tick build() {
             Tick result = new Tick();
-            result.setPixels(Utils.convertDpToPixel(mDP));
             result.setLength(mLength);
-            result.setIsInchTick(mDP == 160);
+            result.setIsInchTick(inchTick);
             result.setFormatString(mFormatString);
             result.setDenominator(mDenominator);
             result.setPaint(mPaint);
@@ -150,6 +141,11 @@ public class Tick {
 
         public Builder hideLabel() {
             mShowLabel = false;
+            return this;
+        }
+
+        public Builder isInchTick() {
+            inchTick = true;
             return this;
         }
     }

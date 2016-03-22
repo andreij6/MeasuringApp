@@ -1,9 +1,16 @@
 apply plugin: 'com.android.application'
 
 android {
+    signingConfigs {
+        config {
+            keyAlias 'CreativeJonesKeyStore'
+            keyPassword '@Stronger6'
+            storeFile file('C:/KEY_STORE/creativejones.jks')
+            storePassword '@Stronger6'
+        }
+    }
     compileSdkVersion 23
     buildToolsVersion "23.0.2"
-
     defaultConfig {
         applicationId "com.creativejones.andre.measureapp"
         minSdkVersion 18
@@ -15,7 +22,10 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.config
         }
+    }
+    productFlavors {
     }
 }
 
